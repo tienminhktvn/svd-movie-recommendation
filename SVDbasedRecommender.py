@@ -166,8 +166,7 @@ normalised_mat = ratings_mat - movie_means.reshape(-1, 1)
 normalised_mat[ratings_mat == 0] = 0
 
 print("Đang phân rã SVD...")
-key = matrix_cache_key(normalised_mat)
-paths = cache_paths(key)
+paths = cache_paths("demo")
 cached = load_svd_from_cache(paths)
 
 if cached is None:
