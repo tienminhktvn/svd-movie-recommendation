@@ -3,14 +3,33 @@ import math
 from diagonalization import jacobi_eigen_decomposition
 
 
+def _to_2d_list(a):
+    """Convert array-like matrix input to plain Python list[list[float]]."""
+    if a is None:
+        return []
+
+    if hasattr(a, "tolist"):
+        a = a.tolist()
+
+    a = list(a)
+    if len(a) == 0:
+        return []
+
+    out = []
+    for row in a:
+        row_list = list(row)
+        out.append([float(v) for v in row_list])
+    return out
+
+
 def transpose(a):
-    if not a:
+    if len(a) == 0:
         return []
     return [list(col) for col in zip(*a)]
 
 
 def matmul(a, b):
-    if not a or not b:
+    if len(a) == 0 or len(b) == 0:
         return []
     rows_a = len(a)
     cols_a = len(a[0])
@@ -32,7 +51,7 @@ def matmul(a, b):
 
 def matvec(a, x):
     rows = len(a)
-    cols = len(a[0]) if a else 0
+    cols = len(a[0]) if rows > 0 else 0
     if cols != len(x):
         raise ValueError("Incompatible shapes for matrix-vector product")
     out = [0.0 for _ in range(rows)]
@@ -81,7 +100,8 @@ def custom_svd(a, tolerance=1e-10):
       U: (m x r), S: (r,), Vt: (r x n)
     where r = min(m, n).
     """
-    if not a:
+    a = _to_2d_list(a)
+    if len(a) == 0:
         return [], [], []
 
     m = len(a)

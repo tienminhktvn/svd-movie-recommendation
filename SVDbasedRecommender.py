@@ -1,9 +1,20 @@
 #!/usr/bin/env pythons
 
+import hashlib
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
 from decomposition import custom_svd
+
+# ===== Runtime options =====
+QUICK_DEMO = True
+QUICK_DEMO_MAX_USERS = 120
+QUICK_DEMO_MAX_MOVIES = 300
+
+CACHE_DIR = Path("cache")
+CACHE_DIR.mkdir(exist_ok=True)
 
 
 def test_custom_svd(input_matrix, tolerance=1e-5):
@@ -54,6 +65,47 @@ def test_custom_svd(input_matrix, tolerance=1e-5):
     }
 
 
+def matrix_cache_key(matrix):
+    """Build a stable cache key from matrix shape + raw bytes hash."""
+    arr = np.ascontiguousarray(matrix.astype(np.float32))
+    digest = hashlib.md5(arr.tobytes()).hexdigest()[:16]
+    return f"{arr.shape[0]}x{arr.shape[1]}_{digest}"
+
+
+def cache_paths(cache_key):
+    return {
+        "u": CACHE_DIR / f"U_{cache_key}.csv",
+        "s": CACHE_DIR / f"S_{cache_key}.csv",
+        "vt": CACHE_DIR / f"Vt_{cache_key}.csv",
+    }
+
+
+def load_svd_from_cache(paths):
+    if not (paths["u"].exists() and paths["s"].exists() and paths["vt"].exists()):
+        return None
+
+    print("Tìm thấy cache SVD, đang load từ CSV...")
+    u = np.loadtxt(paths["u"], delimiter=",", dtype=np.float32)
+    s = np.loadtxt(paths["s"], delimiter=",", dtype=np.float32)
+    vt = np.loadtxt(paths["vt"], delimiter=",", dtype=np.float32)
+
+    if u.ndim == 1:
+        u = u.reshape(-1, 1)
+    if np.ndim(s) == 0:
+        s = np.array([s], dtype=np.float32)
+    if vt.ndim == 1:
+        vt = vt.reshape(1, -1)
+
+    return u, s, vt
+
+
+def save_svd_to_cache(u, s, vt, paths):
+    print("Đang lưu cache SVD ra CSV...")
+    np.savetxt(paths["u"], u, delimiter=",")
+    np.savetxt(paths["s"], s, delimiter=",")
+    np.savetxt(paths["vt"], vt, delimiter=",")
+
+
 # Điểm số 5 phim dùng để "bắt mạch" sở thích (MovieID, Rating)
 ANCHOR_MOVIES = [
     (1, 5.0),  # Toy Story
@@ -75,6 +127,18 @@ TEST_MOVIES = [
 print("Đang tải dữ liệu...")
 data_ratings = pd.read_csv("data/ratings.csv")
 data_movies = pd.read_csv("data/movies.csv")
+
+if QUICK_DEMO:
+    print(
+        f"Quick demo mode ON: giữ tối đa {QUICK_DEMO_MAX_USERS} users, {QUICK_DEMO_MAX_MOVIES} movies"
+    )
+    top_users = data_ratings["userId"].value_counts().head(QUICK_DEMO_MAX_USERS).index
+    ratings_by_users = data_ratings[data_ratings["userId"].isin(top_users)]
+    top_movies = (
+        ratings_by_users["movieId"].value_counts().head(QUICK_DEMO_MAX_MOVIES).index
+    )
+    data_ratings = ratings_by_users[ratings_by_users["movieId"].isin(top_movies)].copy()
+    print(f"Kích thước ratings sau giảm mẫu: {data_ratings.shape}")
 
 movies = data_ratings["movieId"].unique()
 users = data_ratings["userId"].unique()
@@ -102,14 +166,23 @@ normalised_mat = ratings_mat - movie_means.reshape(-1, 1)
 normalised_mat[ratings_mat == 0] = 0
 
 print("Đang phân rã SVD...")
-# Áp dụng thuật toán SVD: A = U * S * V^T
-U, S, V = np.linalg.svd(normalised_mat, full_matrices=False)
+key = matrix_cache_key(normalised_mat)
+paths = cache_paths(key)
+cached = load_svd_from_cache(paths)
 
-# Demo validate thuật toán custom trên ma trận nhỏ (để chạy nhanh)
-_ = test_custom_svd([[3.0, 1.0], [1.0, 3.0], [1.0, 1.0]])
+if cached is None:
+    print("Không có cache phù hợp, chạy custom_svd...")
+    # Áp dụng thuật toán SVD: A = U * S * V^T
+    U, S, Vt = custom_svd(normalised_mat)
+    U = np.array(U, dtype=np.float32)
+    S = np.array(S, dtype=np.float32)
+    Vt = np.array(Vt, dtype=np.float32)
+    save_svd_to_cache(U, S, Vt, paths)
+else:
+    U, S, Vt = cached
 
 # Trích xuất ma trận Đặc trưng phim (Latent Features) với k=50 chiều
-k = 50
+k = min(50, U.shape[1])
 movie_features = U[:, :k]
 
 # ==========================================
@@ -120,7 +193,12 @@ A_matrix = []
 b_vector = []
 
 for m_id, rating in ANCHOR_MOVIES:
-    title = data_movies[data_movies.movieId == m_id].title.values[0]
+    if m_id not in movie_to_idx:
+        print(f"  - Bỏ qua MovieID {m_id}: không nằm trong tập demo hiện tại")
+        continue
+
+    title_rows = data_movies[data_movies.movieId == m_id]
+    title = title_rows.title.values[0] if not title_rows.empty else f"MovieID {m_id}"
     print(f"  - {rating} sao : {title}")
 
     idx_m = movie_to_idx[m_id]
@@ -131,6 +209,9 @@ for m_id, rating in ANCHOR_MOVIES:
 
 A_matrix = np.array(A_matrix)
 b_vector = np.array(b_vector)
+
+if len(A_matrix) == 0:
+    raise RuntimeError("Không có anchor movie hợp lệ để suy ra sở thích.")
 
 # Dùng Ma trận giả nghịch đảo để giải hệ phương trình: A * x = b
 # Đầu ra là 'user_vector' chứa 50 giá trị đại diện cho sở thích
@@ -143,7 +224,12 @@ user_vector = np.dot(A_pinv, b_vector)
 # ==========================================
 print(f"\n[BƯỚC 2] Dự đoán điểm cho {len(TEST_MOVIES)} phim kiểm chứng:")
 for m_id in TEST_MOVIES:
-    title = data_movies[data_movies.movieId == m_id].title.values[0]
+    if m_id not in movie_to_idx:
+        print(f"  -> Bỏ qua MovieID {m_id}: không nằm trong tập demo hiện tại")
+        continue
+
+    title_rows = data_movies[data_movies.movieId == m_id]
+    title = title_rows.title.values[0] if not title_rows.empty else f"MovieID {m_id}"
     idx_m = movie_to_idx[m_id]
 
     # Tích vô hướng (Dot Product) giữa Đặc trưng phim và Vector sở thích
