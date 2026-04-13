@@ -3,6 +3,57 @@
 import numpy as np
 import pandas as pd
 
+from decomposition import custom_svd
+
+
+def test_custom_svd(input_matrix, tolerance=1e-5):
+    """
+    Validate pure-Python SVD implementation against np.linalg.svd.
+
+    Args:
+        input_matrix: 2D list or np.ndarray
+        tolerance: threshold for pass/fail
+    """
+    a_np = np.array(input_matrix, dtype=float)
+    if a_np.ndim != 2:
+        raise ValueError("input_matrix must be 2D")
+
+    u_custom, s_custom, vt_custom = custom_svd(a_np.tolist())
+    u_custom = np.array(u_custom, dtype=float)
+    s_custom = np.array(s_custom, dtype=float)
+    vt_custom = np.array(vt_custom, dtype=float)
+
+    u_np, s_np, vt_np = np.linalg.svd(a_np, full_matrices=False)
+
+    a_custom_reconstructed = u_custom @ np.diag(s_custom) @ vt_custom
+    a_np_reconstructed = u_np @ np.diag(s_np) @ vt_np
+
+    singular_error = float(np.max(np.abs(s_custom - s_np)))
+    recon_error_vs_input = float(np.max(np.abs(a_custom_reconstructed - a_np)))
+    recon_error_vs_numpy = float(
+        np.max(np.abs(a_custom_reconstructed - a_np_reconstructed))
+    )
+
+    passed = (
+        singular_error < tolerance
+        and recon_error_vs_input < tolerance
+        and recon_error_vs_numpy < tolerance
+    )
+
+    print("\n[TEST CUSTOM SVD]")
+    print(f"  - Max singular value error: {singular_error:.8f}")
+    print(f"  - Max reconstruction error vs input: {recon_error_vs_input:.8f}")
+    print(f"  - Max reconstruction error vs numpy: {recon_error_vs_numpy:.8f}")
+    print(f"  - Result: {'PASS' if passed else 'FAIL'}")
+
+    return {
+        "passed": passed,
+        "singular_error": singular_error,
+        "recon_error_vs_input": recon_error_vs_input,
+        "recon_error_vs_numpy": recon_error_vs_numpy,
+    }
+
+
 # Điểm số 5 phim dùng để "bắt mạch" sở thích (MovieID, Rating)
 ANCHOR_MOVIES = [
     (1, 5.0),  # Toy Story
@@ -54,6 +105,9 @@ print("Đang phân rã SVD...")
 # Áp dụng thuật toán SVD: A = U * S * V^T
 U, S, V = np.linalg.svd(normalised_mat, full_matrices=False)
 
+# Demo validate thuật toán custom trên ma trận nhỏ (để chạy nhanh)
+_ = test_custom_svd([[3.0, 1.0], [1.0, 3.0], [1.0, 1.0]])
+
 # Trích xuất ma trận Đặc trưng phim (Latent Features) với k=50 chiều
 k = 50
 movie_features = U[:, :k]
@@ -78,7 +132,7 @@ for m_id, rating in ANCHOR_MOVIES:
 A_matrix = np.array(A_matrix)
 b_vector = np.array(b_vector)
 
-# Dùng Ma trận giả nghịch đảo (Pseudoinverse) để giải hệ phương trình: A * x = b
+# Dùng Ma trận giả nghịch đảo để giải hệ phương trình: A * x = b
 # Đầu ra là 'user_vector' chứa 50 giá trị đại diện cho sở thích
 A_pinv = np.linalg.pinv(A_matrix)
 user_vector = np.dot(A_pinv, b_vector)
