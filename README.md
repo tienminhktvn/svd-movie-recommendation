@@ -7,5 +7,3 @@ pip install -r .\requirements.txt
 
 python SVDbasedRecommender.py
 ```
-
-Hoặc có thể chạy `SVDbasedRecommender_colab.ipynb` trên colab
