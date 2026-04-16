@@ -108,21 +108,30 @@ def save_svd_to_cache(u, s, vt, paths):
 
 # Điểm số 5 phim dùng để "bắt mạch" sở thích (MovieID, Rating)
 ANCHOR_MOVIES = [
-    (1, 5.0),  # Toy Story
-    (2571, 4.0),  # The Matrix
-    (318, 5.0),  # Shawshank Redemption
-    (480, 5.0),  # Jurassic Park
-    (593, 5.0),  # Silence of the Lambs
+    (1, 4.5),  # Toy Story
+    (480, 4.2),  # Jurassic Park
+    # (72998, 4.5),  # Avatar (2009)
+    (5349, 3.5),  # Spider-Man (2002)
+    (79091, 4.0),  # Despicable Me (2010)
+    # (59784, 4.5),  # Kung Fu Panda (2008)
+    # (
+    #     4896,
+    #     4.0,
+    # ),  # Harry Potter and the Sorcerer's Stone (a.k.a. Harry Potter and the Philosopher's Stone) (2001)
+    (1721, 2.0),  # Titanic (1997)
+    (2081, 3.0),  # Little Mermaid, The (1989)
+    (7064, 4.0),  # Beauty and the Beast (La belle et la bête) (1946)
+    (72921, 3.0),  # Snow White (1916)
+    (588, 4.0),  # Aladdin (1992)
+    (6377, 4.5),  # Finding Nemo (2003)
+    # (5618, 4.1),  # Spirited Away (Sen to Chihiro no kamikakushi) (2001)
+    # (114713, 4.0),  # Annabelle (2014)
+    (50872, 5.0),  # Ratatouille (2007)
+    # (63992, 4.0),  # Twilight (2008)
 ]
 
 # 5 phim dùng để kiểm chứng dự đoán (MovieID)
-TEST_MOVIES = [
-    260,  # Star Wars: Episode IV
-    589,  # Terminator 2
-    356,  # Forrest Gump
-    2858,  # American Beauty
-    1196,  # Star Wars: Episode V
-]
+TEST_MOVIES = [5618, 72998, 59784]
 
 print("Đang tải dữ liệu...")
 data_ratings = pd.read_csv("data/ratings.csv")
@@ -181,7 +190,7 @@ else:
     U, S, Vt = cached
 
 # Trích xuất ma trận Đặc trưng phim (Latent Features) với k=50 chiều
-k = min(50, U.shape[1])
+k = min(len(ANCHOR_MOVIES) - 3, U.shape[1])
 movie_features = U[:, :k]
 
 # ==========================================
