@@ -9,7 +9,7 @@ import pandas as pd
 from decomposition import custom_svd
 
 # ===== Runtime options =====
-QUICK_DEMO = True
+QUICK_DEMO = False
 QUICK_DEMO_MAX_USERS = 120
 QUICK_DEMO_MAX_MOVIES = 300
 
