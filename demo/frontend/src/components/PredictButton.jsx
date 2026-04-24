@@ -11,12 +11,14 @@ export default function PredictButton({ loading, done, onClick }) {
                  transition-colors shadow-sm"
     >
       {loading ? (
-        <><span className="spinner" /> Đang tính toán SVD…</>
+        <>
+          <span className="spinner" /> Đang tính toán SVD…
+        </>
       ) : done ? (
         <>🔄 Chạy lại</>
       ) : (
-        <>Chạy mô phỏng dự đoán (SVD)</>
+        <>Dự đoán</>
       )}
     </button>
-  )
+  );
 }
