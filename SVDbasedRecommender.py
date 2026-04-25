@@ -9,7 +9,7 @@ import pandas as pd
 from decomposition import custom_svd
 
 # ===== Runtime options =====
-QUICK_DEMO = True
+QUICK_DEMO = False
 QUICK_DEMO_MAX_USERS = 120
 QUICK_DEMO_MAX_MOVIES = 300
 
@@ -108,21 +108,29 @@ def save_svd_to_cache(u, s, vt, paths):
 
 # Điểm số 5 phim dùng để "bắt mạch" sở thích (MovieID, Rating)
 ANCHOR_MOVIES = [
-    (1, 5.0),  # Toy Story
-    (2571, 4.0),  # The Matrix
-    (318, 5.0),  # Shawshank Redemption
-    (480, 5.0),  # Jurassic Park
-    (593, 5.0),  # Silence of the Lambs
+    (1, 4.5),  # Toy Story
+    (480, 4.2),  # Jurassic Park
+    (5349, 3.5),  # Spider-Man (2002)
+    (79091, 3.8),  # Despicable Me (2010)
+    (59784, 4.5),  # Kung Fu Panda (2008)
+    (
+        4896,
+        3.0,
+    ),  # Harry Potter and the Sorcerer's Stone (a.k.a. Harry Potter and the Philosopher's Stone) (2001)
+    # (1721, 2.0),  # Titanic (1997)
+    (2081, 3.0),  # Little Mermaid, The (1989)
+    (588, 4.0),  # Aladdin (1992)
+    (6377, 3.9),  # Finding Nemo (2003)
+    (5618, 4.1),  # Spirited Away (Sen to Chihiro no kamikakushi) (2001)
+    (114713, 1.5),  # Annabelle (2014)
+    (50872, 4.0),  # Ratatouille (2007)
+    # (6539, 5.0),  # Pirates of the Caribbean: The Curse of the Black Pearl (2003)
+    (595, 3.0),  # Beauty and the Beast (1991)
+    (27611, 4.0),  # Howl's Moving Castle (Hauru no ugoku shiro) (2004)
 ]
 
 # 5 phim dùng để kiểm chứng dự đoán (MovieID)
-TEST_MOVIES = [
-    260,  # Star Wars: Episode IV
-    589,  # Terminator 2
-    356,  # Forrest Gump
-    2858,  # American Beauty
-    1196,  # Star Wars: Episode V
-]
+TEST_MOVIES = [59784, 1721]
 
 print("Đang tải dữ liệu...")
 data_ratings = pd.read_csv("data/ratings.csv")
@@ -181,7 +189,7 @@ else:
     U, S, Vt = cached
 
 # Trích xuất ma trận Đặc trưng phim (Latent Features) với k=50 chiều
-k = min(50, U.shape[1])
+k = min(len(ANCHOR_MOVIES) - 3, U.shape[1])
 movie_features = U[:, :k]
 
 # ==========================================
